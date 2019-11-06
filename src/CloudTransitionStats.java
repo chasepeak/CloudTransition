@@ -1,4 +1,5 @@
 
+//this class can be utilized to garner statistics on the various deployments (update for future implementation)
 public class CloudTransitionStats {
 	
 	private int cycles;

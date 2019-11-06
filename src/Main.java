@@ -2,60 +2,85 @@ import java.util.LinkedList;
 import java.util.Random;
 
 /*  
- *  percentage of data pushed per cycle depends on the total amount of data
- *  
  *  assumption:
  *   - each deployment cycle lasts for one month
  */
 
 public class Main {
 	
-	private static Random x = new Random();
+	//Parameters:
+	
+	// Total data mass (in Terabytes) being transfer to the cloud
 	private static int totalData = 1000;
+	
+	// The percentage of the total data to be deployed in the last cycle
 	private static double limit = 0.25;
-	private static long totalCost;
-	private static LinkedList<Long> dataPerCycle;
+	
+	
+	private static Random x = new Random();
 
 	public static void main(String[] args) {
-		for (int i = 0; i < 10; i++) {
-			deployData(totalData);
-			System.out.println();
-		}
+		System.out.println(deployData(totalData));
 	}
 	
-	public static void deployData(int data) {
+	/**
+	 * This method simulates the deployment of a mass of data to the cloud
+	 * @param data - the data mass to be deployed for a full cloud transition
+	 * @return the total cost of deploying the data mass to the cloud
+	 */
+	public static long deployData(int data) {
+		//initialize the cycle count
 		int cycles = 0;
+		
+		//initialize the deployed data, remaining data for each cycle
 		long deployedData = 0, remainingData = data;
-		totalCost = 0;
-		dataPerCycle = new LinkedList<Long>();
-		System.out.println(String.format("the limit is %d%%", (int)(limit * 100)));
+		
+		//initialize the totalCost of the full deployment
+		long totalCost = 0;
+		
+		//initialize the list of incremental data deployments for each cycle
+		LinkedList<Long> dataPerCycle = new LinkedList<Long>();
+		
+		//executes a deployment cycle when the remaining data is greater than the described limit
 		while (remainingData > (double)(data * limit)) {
 			cycles++;
-			System.out.println("cycle #" + cycles + ":");
+			
+			//determines the amount of data to be deployed based on a random variable
 			deployedData = Math.round(remainingData * x.nextDouble() + 0.005);
 			dataPerCycle.add(deployedData);
-			
-			System.out.println("deployedData: " + deployedData);
 			remainingData = remainingData - deployedData;
-			System.out.println("remaining data: " + remainingData);
 			
-			totalCost += calculateCycleCost(data - remainingData);
-			
-			System.out.println("current cost: " + totalCost);
+			totalCost += calculateCycleCost(dataPerCycle, data - remainingData);
 		}
-		totalCost += calculateCycleCost(data);
-		System.out.println("total cycles: " + ++cycles);
-		System.out.println("total cost: " + totalCost);
+		
+		//this final iteration accounts for the remaining data being deployed
+		cycles++;
+		dataPerCycle.add(remainingData);
+		totalCost += calculateCycleCost(dataPerCycle, data);
+
+		System.out.println("total cycles: " + cycles);
+		
+		return totalCost;
 	}
 	
-	private static long calculateCycleCost(long totalDeployed) {
+	/**
+	 * This method calculates the incurred cost for a given cycle, including the costs from previous cycles
+	 * @param dataPerCycle - the list of data deployments per cycle
+	 * @param totalDeployed - the total data that has already been deployed
+	 * @return the cost incurred at the end of a deployment cycle
+	 */
+	private static long calculateCycleCost(LinkedList<Long> dataPerCycle, long totalDeployed) {
 		long cost = 0;
 		for (int i = 0; i < dataPerCycle.size(); i++) {
 			cost += (getPricing(totalDeployed) * dataPerCycle.get(i));
 		}
 		return cost;
 	}
-	
+	/**
+	 * This method establishes the pricing of the data per TB based on the AWS S3 pricing standards
+	 * @param totalDeployed - the total data that has already been deployed
+	 * @return the storage pricing per TB
+	 */
 	private static int getPricing(long totalDeployed) {
 		int pricing;
 		if (totalDeployed <= 50) {
