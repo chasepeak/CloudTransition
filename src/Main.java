@@ -18,63 +18,63 @@ public class Main {
 	
 	//Parameters:
 	
-	private static long dataLimit;
-	
-	private static double firstPercentage = 0;
+	//private static double firstPercentage = 0;
 	
 	// Total data mass (in Terabytes) being transfer to the cloud
 	private static int totalData = 1000;
 	
 	//Average monthly wages to pay a contractor per 100TB pushed
-	private static int labor = 3500 / 100;
+	private static int labor = 7000 / 100;
 	
 	// The percentage of the total data to be deployed in the last cycle
 	private static double limit;
 	
-	private static File statistics_limit = new File("statistics_limit.txt");
-	private static File statistics_cycles = new File("statistics_cycles.txt");
+	private static LinkedList<Long> dataCycles = new LinkedList<Long>();
+	
+	private static File even_cycles_stats = new File("even_cycles.txt");
 	
 	
 	private static Random x = new Random();
 
 	public static void main(String[] args) throws IOException {
 		
-		if (!(Files.exists(Paths.get(statistics_limit.getPath())) || Files.exists(Paths.get(statistics_limit.getPath())))) {
+		if (!Files.exists(Paths.get(even_cycles_stats.getPath()))) {
 			try {
-				statistics_limit.createNewFile();
-				statistics_cycles.createNewFile();
+				even_cycles_stats.createNewFile();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		for (int i = 0; i < 3_000; i++) {
-			dataLimit = Math.round(x.nextDouble() * 100);
-			deployData(totalData);
+		deployEvenCycles();
+		//for (int i = 0; i < 3_000; i++)
+		//	deployData();
+	}
+	
+	public static long deployEvenCycles() throws IOException {
+		
+		//assumption: a cloud deployment transition period will be at most 2 years (24 months)
+		int j, cycleRange = 24;
+		long dataPerCycle;
+		double i;
+		
+		//this will simulate the possible even splits of data deployments between 1 and 24 cycles
+		for (i = 1; i <= cycleRange; i++) {
+			long totalCost = 0, deployedData = 0;
+			dataPerCycle = Math.round(totalData / i);
+			
+			//this performs the individual cycles
+			for (j = 0; j < i; j++) {
+				deployedData += dataPerCycle;
+				dataCycles.add(dataPerCycle);
+				totalCost += calculateLaborCost(dataPerCycle);
+				totalCost += calculateStorageCost(deployedData);
+			}
+			Files.write(Paths.get(even_cycles_stats.getPath()), (String.format("%d,%d\n", (int)i, totalCost)).getBytes(), StandardOpenOption.APPEND);
+			totalCost = 0;
 		}
 		
-		/*try {
-			int i = 0;
-			int max = 0, maxIndex = 0;
-			int temp;
-			BufferedReader br = new BufferedReader(new FileReader(statistics_cycles));
-			String line;
-			while ((line = br.readLine()) != null) {
-				String lines[] = line.split(",");
-				temp = Integer.parseInt(lines[0]);
-				if(temp > max) {
-					max = temp;
-					maxIndex = i;
-				}
-				i++;
-			}
-			br.close();
-			System.out.println(max);
-			System.out.println(maxIndex);
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}*/
+		return 0;
 	}
 	
 	/**
@@ -82,63 +82,26 @@ public class Main {
 	 * @param data - the data mass to be deployed for a full cloud transition
 	 * @return the total cost of deploying the data mass to the cloud
 	 */
-	public static long deployData(int data) {
+	public static long deployData() {
 		//initialize the cycle count
 		int cycles = 0;
 		
 		//initialize the deployed data, remaining data for each cycle
-		long deployedData = 0, remainingData = data;
+		long deployedData = 0, remainingData = totalData;
 		
 		//initialize the totalCost of the full deployment
 		long totalCost = 0;
-		
-		//initialize the list of incremental data deployments for each cycle
-		LinkedList<Long> dataPerCycle = new LinkedList<Long>();
-		
-		//initialize the limit to a random variable
-		limit = getRandomVar();
-		
-		
-		
-		//executes a deployment cycle when the remaining data is greater than the described limit
-		while (remainingData > (double)(data * limit)) {
-			cycles++;
-			
-			//System.out.println("\ncycle #" + cycles);
-			double initialPercentage = x.nextDouble();
-			if (firstPercentage == 0) {
-				firstPercentage = initialPercentage;
-			}
-			//determines the amount of data to be deployed based on a random variable
-			deployedData = Math.round(remainingData * initialPercentage);
-			
-			totalCost += calculateLaborCost(deployedData);
-			dataPerCycle.add(deployedData);
-			remainingData = remainingData - deployedData;
-			//System.out.println("data deployed: " + deployedData);
-			//System.out.println("remaining data: " + remainingData);
-			
-			totalCost += calculateCycleCost(dataPerCycle, data - remainingData);
-			
-			//System.out.println("total cost of deployments so far: " + totalCost);
+
+		cycles = x.nextInt(23) + 1;
+		long remainingDataSplits = Math.round(totalData / (double)cycles);
+		for (int i = 0; i < cycles; i++) {
+			totalCost += calculateLaborCost(remainingDataSplits);
+			dataCycles.add(remainingDataSplits);
+			remainingData -= remainingDataSplits;
+			totalCost += calculateStorageCost(totalData - remainingData);
 		}
-		
-		//this final iteration accounts for the remaining data being deployed
-		cycles++;
-		dataPerCycle.add(remainingData);
-		totalCost += calculateLaborCost(data - remainingData);
-		totalCost += calculateCycleCost(dataPerCycle, data);
-		//System.out.println();
-		//System.out.println("total cycles: " + cycles);
-		//System.out.println("total cost: " + totalCost);
-		try {
-			Files.write(Paths.get(statistics_limit.getPath()), (String.format("%.2f,%d\n", firstPercentage, totalCost)).getBytes(), StandardOpenOption.APPEND);
-			Files.write(Paths.get(statistics_cycles.getPath()), (String.format("%d,%d\n", cycles, totalCost)).getBytes(), StandardOpenOption.APPEND);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		firstPercentage = 0;
+
+		//firstPercentage = 0;
 		return totalCost;
 	}
 	
@@ -148,19 +111,18 @@ public class Main {
 	 * @param totalDeployed - the total data that has already been deployed
 	 * @return the cost incurred at the end of a deployment cycle
 	 */
-	private static long calculateCycleCost(LinkedList<Long> dataPerCycle, long totalDeployed) {
-		long cost = 0;
-		for (int i = 0; i < dataPerCycle.size(); i++) {
-			cost += (getPricing(totalDeployed) * dataPerCycle.get(i));
+	private static long calculateStorageCost(long totalDeployed) {
+		long cost = 0, price = getPricing(totalDeployed);
+		for (int i = 0; i < dataCycles.size(); i++) {
+			cost += (price * dataCycles.get(i));
 		}
-		//System.out.println("cost for this deployment cycle: " + cost);
 		return cost;
 	}
 	
 	private static long calculateLaborCost(long deployedData) {
-		int multiplier;
-		if (deployedData > 100) {
-			return Math.round(labor * 100 + 2.5 * labor * (deployedData - 100));
+		long maxedEmployees = deployedData / 100;
+		if (deployedData >= 100) {
+			return Math.round(100 * maxedEmployees * labor + labor * (deployedData % 100));
 		}
 		else if (deployedData > 50) {
 			return deployedData * labor;
@@ -188,9 +150,9 @@ public class Main {
 		return Math.round((0.5 - (x.nextDouble() * 0.5)) * 100) / 100.0;
 	}*/
 	
-	private static double getRandomVar() {
+	/*private static double getRandomVar() {
 	return Math.round(x.nextDouble() * 100) / 100.0;
-	}
+	}*/
 	
 	
 }
