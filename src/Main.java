@@ -21,9 +21,9 @@ public class Main {
 	//private static double firstPercentage = 0;
 	
 	// Total data mass (in Terabytes) being transfer to the cloud
-	private static int totalData = 1000;
+	private static int DATA = 1000;
 	
-	//Average monthly wages to pay a contractor per 100TB pushed
+	//Average monthly wages to pay a contractor per 10TB pushed
 	private static int labor = 7000 / 100;
 	
 	// The percentage of the total data to be deployed in the last cycle
@@ -32,49 +32,73 @@ public class Main {
 	private static LinkedList<Long> dataCycles = new LinkedList<Long>();
 	
 	private static File even_cycles_stats = new File("even_cycles.txt");
+	private static File weighted_cycles_stats = new File("weighted_cycles.txt");
 	
 	
 	private static Random x = new Random();
 
 	public static void main(String[] args) throws IOException {
 		
-		if (!Files.exists(Paths.get(even_cycles_stats.getPath()))) {
+		if (!(Files.exists(Paths.get(even_cycles_stats.getPath())) && Files.exists(Paths.get(weighted_cycles_stats.getPath())))) {
 			try {
 				even_cycles_stats.createNewFile();
+				weighted_cycles_stats.createNewFile();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		deployEvenCycles();
-		//for (int i = 0; i < 3_000; i++)
-		//	deployData();
+		deployEvenCycles(0, DATA, true, 0);
+		//deployWeightedCycles();
 	}
 	
-	public static long deployEvenCycles() throws IOException {
+	public static void deployEvenCycles(long totCost, long totalData, boolean writeToEvenFile, double z) throws IOException {
 		
 		//assumption: a cloud deployment transition period will be at most 2 years (24 months)
-		int j, cycleRange = 24;
+		int j, cycleRange = 23;//24;
 		long dataPerCycle;
 		double i;
 		
+		//marker for which deployment method is being used
+		if (!writeToEvenFile) {
+			cycleRange--;
+		}
+		
 		//this will simulate the possible even splits of data deployments between 1 and 24 cycles
 		for (i = 1; i <= cycleRange; i++) {
-			long totalCost = 0, deployedData = 0;
+			long totalCost = 0, deployedData = (Math.round(DATA / 24));//totCost, deployedData = DATA - totalData;
 			dataPerCycle = Math.round(totalData / i);
 			
 			//this performs the individual cycles
-			for (j = 0; j < i; j++) {
+			for (j = 0; j < 1; j++) {
 				deployedData += dataPerCycle;
-				dataCycles.add(dataPerCycle);
-				totalCost += calculateLaborCost(dataPerCycle);
-				totalCost += calculateStorageCost(deployedData);
+				totalCost += calculateMonthlyCost(dataPerCycle, deployedData);
 			}
-			Files.write(Paths.get(even_cycles_stats.getPath()), (String.format("%d,%d\n", (int)i, totalCost)).getBytes(), StandardOpenOption.APPEND);
+			if (writeToEvenFile) {
+				Files.write(Paths.get(even_cycles_stats.getPath()), (String.format("%d,%d\n", (int)i, totalCost)).getBytes(), StandardOpenOption.APPEND);
+			}
+			else {
+				Files.write(Paths.get(weighted_cycles_stats.getPath()), (String.format("%.2f,%d,%d\n", z, (int)(i + 1), totalCost)).getBytes(), StandardOpenOption.APPEND);
+			}
 			totalCost = 0;
 		}
-		
-		return 0;
+	}
+	
+	public static void deployWeightedCycles() throws IOException {
+		double i;
+		for (i = 0.05; i <= 1; i+= 0.05) {
+			long totalCost = 0, deployedData = Math.round(i * DATA);
+			calculateMonthlyCost(deployedData, deployedData);
+			deployEvenCycles(totalCost, DATA - deployedData, false, i);
+		}
+	}
+	
+	private static long calculateMonthlyCost(long deployedData, long deployedSum) {
+		long cost = 0;
+		dataCycles.add(deployedData);
+		cost += calculateLaborCost(deployedData);
+		cost += calculateStorageCost(deployedSum);
+		return cost;
 	}
 	
 	/**
@@ -87,18 +111,18 @@ public class Main {
 		int cycles = 0;
 		
 		//initialize the deployed data, remaining data for each cycle
-		long deployedData = 0, remainingData = totalData;
+		long deployedData = 0, remainingData = DATA;
 		
 		//initialize the totalCost of the full deployment
 		long totalCost = 0;
 
 		cycles = x.nextInt(23) + 1;
-		long remainingDataSplits = Math.round(totalData / (double)cycles);
+		long remainingDataSplits = Math.round(DATA / (double)cycles);
 		for (int i = 0; i < cycles; i++) {
 			totalCost += calculateLaborCost(remainingDataSplits);
 			dataCycles.add(remainingDataSplits);
 			remainingData -= remainingDataSplits;
-			totalCost += calculateStorageCost(totalData - remainingData);
+			totalCost += calculateStorageCost(DATA - remainingData);
 		}
 
 		//firstPercentage = 0;
@@ -113,21 +137,22 @@ public class Main {
 	 */
 	private static long calculateStorageCost(long totalDeployed) {
 		long cost = 0, price = getPricing(totalDeployed);
-		for (int i = 0; i < dataCycles.size(); i++) {
+		return totalDeployed * price;
+		/*for (int i = 0; i < dataCycles.size(); i++) {
 			cost += (price * dataCycles.get(i));
 		}
-		return cost;
+		return cost;*/
 	}
 	
 	private static long calculateLaborCost(long deployedData) {
 		long maxedEmployees = deployedData / 100;
-		if (deployedData >= 100) {
+		if (deployedData > 100) {
 			return Math.round(100 * maxedEmployees * labor + labor * (deployedData % 100));
 		}
-		else if (deployedData > 50) {
+		else if (deployedData > 50 && deployedData <= 100) {
 			return deployedData * labor;
 		}
-		return Math.round(labor * 0.5);
+		return labor * 50;
 	}
 	
 	/**
