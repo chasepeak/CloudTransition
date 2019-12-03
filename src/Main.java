@@ -48,14 +48,14 @@ public class Main {
 				e.printStackTrace();
 			}
 		}
-		deployEvenCycles(0, DATA, true, 0);
-		//deployWeightedCycles();
+		//deployEvenCycles(0, 0, true, 0);
+		deployWeightedCycles();
 	}
 	
-	public static void deployEvenCycles(long totCost, long totalData, boolean writeToEvenFile, double z) throws IOException {
+	public static void deployEvenCycles(long initialCost, long initialData, boolean writeToEvenFile, double z) throws IOException {
 		
 		//assumption: a cloud deployment transition period will be at most 2 years (24 months)
-		int j, cycleRange = 23;//24;
+		int j, cycleRange = 24;
 		long dataPerCycle;
 		double i;
 		
@@ -66,11 +66,11 @@ public class Main {
 		
 		//this will simulate the possible even splits of data deployments between 1 and 24 cycles
 		for (i = 1; i <= cycleRange; i++) {
-			long totalCost = 0, deployedData = (Math.round(DATA / 24));//totCost, deployedData = DATA - totalData;
-			dataPerCycle = Math.round(totalData / i);
+			long totalCost = initialCost, deployedData = initialData;
+			dataPerCycle = Math.round((DATA - deployedData) / i); 
 			
 			//this performs the individual cycles
-			for (j = 0; j < 1; j++) {
+			for (j = 0; j < i; j++) {
 				deployedData += dataPerCycle;
 				totalCost += calculateMonthlyCost(dataPerCycle, deployedData);
 			}
@@ -89,7 +89,7 @@ public class Main {
 		for (i = 0.05; i <= 1; i+= 0.05) {
 			long totalCost = 0, deployedData = Math.round(i * DATA);
 			calculateMonthlyCost(deployedData, deployedData);
-			deployEvenCycles(totalCost, DATA - deployedData, false, i);
+			deployEvenCycles(totalCost, deployedData, false, i);
 		}
 	}
 	
@@ -98,6 +98,9 @@ public class Main {
 		dataCycles.add(deployedData);
 		cost += calculateLaborCost(deployedData);
 		cost += calculateStorageCost(deployedSum);
+		
+		//MAKE SURE THAT DEPLOYEDDATA IN THE J FOR LOOP KNOWS THE TOTAL AMOUNT OF PREVIOUSLY DEPLOYED DATA
+		//FROM THE FIRST I FOR LOOP IN DEPLOYEDWEIGHTEDCYCLES SO THAT IT CALCULATES COST CORRECTLY
 		return cost;
 	}
 	
@@ -137,11 +140,10 @@ public class Main {
 	 */
 	private static long calculateStorageCost(long totalDeployed) {
 		long cost = 0, price = getPricing(totalDeployed);
-		return totalDeployed * price;
-		/*for (int i = 0; i < dataCycles.size(); i++) {
+		for (int i = 0; i < dataCycles.size(); i++) {
 			cost += (price * dataCycles.get(i));
 		}
-		return cost;*/
+		return cost;
 	}
 	
 	private static long calculateLaborCost(long deployedData) {
