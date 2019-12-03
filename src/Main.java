@@ -24,12 +24,7 @@ public class Main {
 	private static int DATA = 1000;
 	
 	//Average monthly wages to pay a contractor per 10TB pushed
-	private static int labor = 7000 / 100;
-	
-	// The percentage of the total data to be deployed in the last cycle
-	private static double limit;
-	
-	private static LinkedList<Long> dataCycles = new LinkedList<Long>();
+	private static int labor = 7200 / 100;
 	
 	private static File even_cycles_stats = new File("even_cycles.txt");
 	private static File weighted_cycles_stats = new File("weighted_cycles.txt");
@@ -48,16 +43,22 @@ public class Main {
 				e.printStackTrace();
 			}
 		}
-		//deployEvenCycles(0, 0, true, 0);
-		deployWeightedCycles();
+		for (int i = 0; i < 100; i++) {
+			double x = getRandomVar();
+			long data = Math.round(DATA * x);
+			deployEvenCycles(calculateMonthlyCost(data, data), data, false, x);
+		}
+		
+		//deployWeightedCycles();
 	}
 	
 	public static void deployEvenCycles(long initialCost, long initialData, boolean writeToEvenFile, double z) throws IOException {
 		
 		//assumption: a cloud deployment transition period will be at most 2 years (24 months)
-		int j, cycleRange = 24;
+		int j;
 		long dataPerCycle;
 		double i;
+		int cycleRange = (initialCost != 0) ? 12 : 24;
 		
 		//marker for which deployment method is being used
 		if (!writeToEvenFile) {
@@ -84,23 +85,20 @@ public class Main {
 		}
 	}
 	
-	public static void deployWeightedCycles() throws IOException {
+	/*public static void deployWeightedCycles() throws IOException {
 		double i;
 		for (i = 0.05; i <= 1; i+= 0.05) {
 			long totalCost = 0, deployedData = Math.round(i * DATA);
 			calculateMonthlyCost(deployedData, deployedData);
 			deployEvenCycles(totalCost, deployedData, false, i);
 		}
-	}
+	}*/
 	
 	private static long calculateMonthlyCost(long deployedData, long deployedSum) {
 		long cost = 0;
-		dataCycles.add(deployedData);
+		//dataCycles.add(deployedData);
 		cost += calculateLaborCost(deployedData);
 		cost += calculateStorageCost(deployedSum);
-		
-		//MAKE SURE THAT DEPLOYEDDATA IN THE J FOR LOOP KNOWS THE TOTAL AMOUNT OF PREVIOUSLY DEPLOYED DATA
-		//FROM THE FIRST I FOR LOOP IN DEPLOYEDWEIGHTEDCYCLES SO THAT IT CALCULATES COST CORRECTLY
 		return cost;
 	}
 	
@@ -123,7 +121,6 @@ public class Main {
 		long remainingDataSplits = Math.round(DATA / (double)cycles);
 		for (int i = 0; i < cycles; i++) {
 			totalCost += calculateLaborCost(remainingDataSplits);
-			dataCycles.add(remainingDataSplits);
 			remainingData -= remainingDataSplits;
 			totalCost += calculateStorageCost(DATA - remainingData);
 		}
@@ -139,11 +136,8 @@ public class Main {
 	 * @return the cost incurred at the end of a deployment cycle
 	 */
 	private static long calculateStorageCost(long totalDeployed) {
-		long cost = 0, price = getPricing(totalDeployed);
-		for (int i = 0; i < dataCycles.size(); i++) {
-			cost += (price * dataCycles.get(i));
-		}
-		return cost;
+		long price = getPricing(totalDeployed);
+		return totalDeployed * price;
 	}
 	
 	private static long calculateLaborCost(long deployedData) {
@@ -177,9 +171,9 @@ public class Main {
 		return Math.round((0.5 - (x.nextDouble() * 0.5)) * 100) / 100.0;
 	}*/
 	
-	/*private static double getRandomVar() {
-	return Math.round(x.nextDouble() * 100) / 100.0;
-	}*/
+	private static double getRandomVar() {
+	return Math.round(x.nextDouble() * 10) / 10.0;
+	}
 	
 	
 }
