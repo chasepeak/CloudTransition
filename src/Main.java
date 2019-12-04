@@ -43,10 +43,10 @@ public class Main {
 				e.printStackTrace();
 			}
 		}
-		for (int i = 0; i < 100; i++) {
-			double x = getRandomVar();
-			long data = Math.round(DATA * x);
-			deployEvenCycles(calculateMonthlyCost(data, data), data, false, x);
+		for (double i = 0; i <= 1; i+= 0.1) {
+			long data = Math.round(DATA * i);
+			deployEvenCycles(0,data,false, i);
+			//deployEvenCycles(calculateMonthlyCost(data, data), data, false, x);
 		}
 		
 		//deployWeightedCycles();
@@ -55,33 +55,34 @@ public class Main {
 	public static void deployEvenCycles(long initialCost, long initialData, boolean writeToEvenFile, double z) throws IOException {
 		
 		//assumption: a cloud deployment transition period will be at most 2 years (24 months)
-		int j;
+		int j, data;
 		long dataPerCycle;
 		double i;
-		int cycleRange = (initialCost != 0) ? 12 : 24;
+		//int cycleRange = (initialCost != 0) ? 12 : 24;
+		int cycleRange = 12;
 		
 		//marker for which deployment method is being used
 		if (!writeToEvenFile) {
 			cycleRange--;
 		}
-		
-		//this will simulate the possible even splits of data deployments between 1 and 24 cycles
+		data = DATA - (int)initialData;
+		//this will simulate the possible even splits of data deployments between 1 and 12 or 24 cycles
 		for (i = 1; i <= cycleRange; i++) {
-			long totalCost = initialCost, deployedData = initialData;
-			dataPerCycle = Math.round((DATA - deployedData) / i); 
+			long totalCost = initialCost, deployedData = 0;//initialData;
+			dataPerCycle = Math.round(data / i);//(DATA - deployedData) / i); 
 			
 			//this performs the individual cycles
 			for (j = 0; j < i; j++) {
 				deployedData += dataPerCycle;
 				totalCost += calculateMonthlyCost(dataPerCycle, deployedData);
 			}
+			totalCost += calculateMonthlyCost(initialData, 1000);//
 			if (writeToEvenFile) {
 				Files.write(Paths.get(even_cycles_stats.getPath()), (String.format("%d,%d\n", (int)i, totalCost)).getBytes(), StandardOpenOption.APPEND);
 			}
 			else {
 				Files.write(Paths.get(weighted_cycles_stats.getPath()), (String.format("%.2f,%d,%d\n", z, (int)(i + 1), totalCost)).getBytes(), StandardOpenOption.APPEND);
 			}
-			totalCost = 0;
 		}
 	}
 	
